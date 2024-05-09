@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tus Archivos de Google Drive</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Escoja una hoja de cálculo</h1>
+        <div class="select-container">
+            <select id="spreadsheet-select">
+                <option value="">Seleccione una hoja de cálculo</option>
+                {% for file in files %}
+                <option value="{{ file.id }}">{{ file.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button id="show-btn">Mostrar</button>
+        <div id="table-container" class="table-container"></div>
+        <button id="save-btn">Guardar</button> <!-- Nuevo botón de guardar -->
+    </div>
+    <div class="logout-btn">
+        <a href="{{ url_for('logout') }}">Cerrar sesión</a>
+    </div>
+    <script src="{{ url_for('static', filename='js/files.js') }}"></script>
+</body>
+</html>

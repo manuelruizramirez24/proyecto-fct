@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Drive Files</title>
+</head>
+<body>
+    <h1>Archivos de Google Drive</h1>
+    {% if email %}
+        <p>Correo electrónico: {{ email }}</p>
+    {% endif %}
+    <ul>
+        {% for file in files %}
+            <li>{{ file['name'] }} - {{ file['id'] }}</li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

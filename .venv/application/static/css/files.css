@@ -1,0 +1,96 @@
+/* Estilos específicos para files.html */
+
+/* Contenedor principal */
+.container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    height: 100vh;
+    background-color: #f8f9fa;
+}
+
+/* Título */
+.container h1 {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+/* Contenedor del menú desplegable */
+.select-container {
+    margin-top: 20px; /* Aumentamos el margen superior */
+}
+
+/* Menú desplegable */
+.select-container select {
+    padding: 10px;
+    font-size: 16px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: #fff;
+    color: #495057;
+}
+
+/* Botón de mostrar */
+#show-btn {
+    display: inline-block;
+    margin-top: 10px; /* Agregamos un margen superior */
+    padding: 10px 20px;
+    background-color: #007bff; /* Color de fondo del botón */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+/* Estilo para el botón de mostrar al pasar el ratón por encima */
+#show-btn:hover {
+    background-color: #0056b3; /* Color de fondo del botón al pasar el ratón por encima */
+}
+
+/* Botón de cerrar sesión */
+.logout-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+/* Estilo para el enlace del botón de cerrar sesión */
+.logout-btn a {
+    display: inline-block;
+    padding: 10px 20px;
+    background-color: #dc3545;
+    color: #fff;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: background-color 0.3s ease;
+}
+
+/* Estilo para el enlace del botón de cerrar sesión al pasar el ratón por encima */
+.logout-btn a:hover {
+    background-color: #c82333;
+}
+
+/* Contenedor de la tabla */
+.table-container {
+    margin-top: 20px; /* Espacio superior entre la tabla y otros elementos */
+}
+
+/* Tabla */
+.table-container table {
+    width: 100%;
+    border-collapse: collapse; /* Fusiona los bordes de las celdas */
+}
+
+.table-container th,
+.table-container td {
+    padding: 8px;
+    border: 1px solid #ddd; /* Borde de las celdas */
+    text-align: left; /* Alineación del texto */
+}
+
+.table-container th {
+    background-color: #f2f2f2; /* Color de fondo del encabezado */
+}
