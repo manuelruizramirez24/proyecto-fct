@@ -1,5 +1,6 @@
-import os
 import flask
+import os
+import json
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
@@ -21,8 +22,44 @@ def show_files():
         return flask.redirect(flask.url_for('oauth2callback'))
     else:
         print('now calling fetch')
+        # Obtener la lista de carpetas y archivos de Google Drive
+        folders, files = fetch_folders_and_files()
+        return flask.render_template('files.html', folders=folders, files=files)
+
+@app.route('/get-files-from-folder', methods=['POST'])
+def get_files_from_folder():
+    folder_id = flask.request.form['folder_id']
+    if folder_id:
+        all_files = fetch(f"'{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet'", sort='modifiedTime desc')
+        return flask.jsonify({'success': True, 'files': all_files})
+    else:
         all_files = fetch("'root' in parents and mimeType = 'application/vnd.google-apps.spreadsheet'", sort='modifiedTime desc')
-        return flask.render_template('files.html', files=all_files)
+        return flask.jsonify({'success': True, 'files': all_files})
+
+@app.route('/show-spreadsheet', methods=['POST'])
+def show_spreadsheet():
+    spreadsheet_id = flask.request.form['spreadsheet_id']
+    if spreadsheet_id:
+        data = fetch_spreadsheet_data(spreadsheet_id)
+        if data:
+            return flask.jsonify({'success': True, 'data': data})
+        else:
+            return flask.jsonify({'success': False, 'message': 'Error fetching spreadsheet data'})
+    else:
+        return flask.jsonify({'success': False, 'message': 'Spreadsheet ID not provided'})
+
+@app.route('/save-changes', methods=['POST'])
+def save_changes():
+    spreadsheet_id = flask.request.json['spreadsheet_id']
+    values = flask.request.json['values']
+    if spreadsheet_id and values:
+        success = update_spreadsheet_values(spreadsheet_id, values)
+        if success:
+            return flask.jsonify({'success': True})
+        else:
+            return flask.jsonify({'success': False, 'message': 'Error saving changes to spreadsheet'})
+    else:
+        return flask.jsonify({'success': False, 'message': 'Spreadsheet ID or values not provided'})
 
 @app.route('/oauth2callback')
 def oauth2callback():
@@ -69,8 +106,6 @@ def get_credentials():
     print("No se encontró ningún archivo de credenciales existente o está vacío.")
     return None
 
-import json
-
 def save_credentials(credentials):
     credentials_dict = {
         "token": credentials.token,
@@ -84,6 +119,20 @@ def save_credentials(credentials):
         json.dump(credentials_dict, token_file)
     print("Credenciales guardadas correctamente.")
 
+def fetch_spreadsheet_data(spreadsheet_id):
+    credentials = get_credentials()
+    service = build('sheets', 'v4', credentials=credentials)
+    result = service.spreadsheets().values().get(spreadsheetId=spreadsheet_id, range='A1:Z100').execute()
+    values = result.get('values', [])
+    return values
+
+def update_spreadsheet_values(spreadsheet_id, values):
+    credentials = get_credentials()
+    service = build('sheets', 'v4', credentials=credentials)
+    body = {'values': values}
+    result = service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range='A1:Z100', valueInputOption='USER_ENTERED', body=body).execute()
+    return True
+
 @app.route('/logout')
 def logout():
     if os.path.exists('token.json'):
@@ -91,6 +140,12 @@ def logout():
         print("Credenciales eliminadas.")
     return flask.redirect(flask.url_for('index'))
 
+def fetch_folders_and_files():
+    credentials = get_credentials()
+    service = build('drive', 'v3', credentials=credentials)
+    folders = fetch("mimeType = 'application/vnd.google-apps.folder'")
+    files = fetch("'root' in parents and mimeType = 'application/vnd.google-apps.spreadsheet'", sort='modifiedTime desc')
+    return folders, files
 
 def fetch(query, sort='modifiedTime desc'):
     credentials = get_credentials()

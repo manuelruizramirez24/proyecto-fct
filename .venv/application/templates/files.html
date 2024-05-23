@@ -5,9 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tus Archivos de Google Drive</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Agregar Chart.js -->
 </head>
 <body>
     <div class="container">
+
+        <h1>Escoja una carpeta y una hoja de cálculo</h1>
+        <div class="select-container">
+            <select id="folder-select">
+                <option value="">Carpeta raíz</option>
+                {% for folder in folders %}
+                <option value="{{ folder.id }}">{{ folder.name }}</option>
+                {% endfor %}
+            </select>
+            <button id="show-files-btn" class="btn">Mostrar Hojas de Cálculo</button>
+        </div>
+        
         <h1>Escoja una hoja de cálculo</h1>
         <div class="select-container">
             <select id="spreadsheet-select">
@@ -17,13 +30,289 @@
                 {% endfor %}
             </select>
         </div>
-        <button id="show-btn">Mostrar</button>
+        <div class="buttons">
+            <button id="show-btn" class="btn primary">Mostrar</button>
+            <button id="save-btn" class="btn">Guardar</button>
+            <button id="generate-chart-btn" class="btn">Generar Gráfico</button>
+        </div>
         <div id="table-container" class="table-container"></div>
-        <button id="save-btn">Guardar</button> <!-- Nuevo botón de guardar -->
+        <div id="controls-container" class="hidden">
+            <label for="column-select">Ocultar Columna:</label>
+            <select id="column-select" class="select">
+                <!-- Opciones de columna generadas dinámicamente -->
+            </select>
+            <button id="hide-column-btn" class="btn danger">Ocultar Columna Seleccionada</button>
+            <button id="show-all-columns-btn" class="btn">Mostrar Todas las Columnas</button>
+        </div>
+        <div class="logout-btn">
+            <a href="{{ url_for('logout') }}" class="btn logout">Cerrar sesión</a>
+        </div>
     </div>
-    <div class="logout-btn">
-        <a href="{{ url_for('logout') }}">Cerrar sesión</a>
-    </div>
-    <script src="{{ url_for('static', filename='js/files.js') }}"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const showBtn = document.getElementById('show-btn');
+            const spreadsheetSelect = document.getElementById('spreadsheet-select');
+            const tableContainer = document.getElementById('table-container');
+            const saveBtn = document.getElementById('save-btn');
+            const generateChartBtn = document.getElementById('generate-chart-btn');
+            const columnSelect = document.getElementById('column-select');
+            const hideColumnBtn = document.getElementById('hide-column-btn');
+            const showAllColumnsBtn = document.getElementById('show-all-columns-btn');
+            const controlsContainer = document.getElementById('controls-container');
+            const showFilesBtn = document.getElementById('show-files-btn');
+            const folderSelect = document.getElementById('folder-select');
+
+            showBtn.addEventListener('click', function() {
+                const spreadsheetId = spreadsheetSelect.value;
+                if (spreadsheetId) {
+                    fetchSpreadsheetData(spreadsheetId);
+                } else {
+                    alert('Por favor, seleccione una hoja de cálculo.');
+                }
+            });
+
+            // Evento al hacer clic en el botón para mostrar las hojas de cálculo
+            showFilesBtn.addEventListener('click', function() {
+                const folderId = folderSelect.value;
+                fetchFiles(folderId);
+            });
+
+            saveBtn.addEventListener('click', function() {
+                const spreadsheetId = spreadsheetSelect.value;
+                if (spreadsheetId) {
+                    saveChanges(spreadsheetId);
+                } else {
+                    alert('Por favor, seleccione una hoja de cálculo.');
+                }
+            });
+
+            generateChartBtn.addEventListener('click', function() {
+                const table = tableContainer.querySelector('table');
+                if (!table) {
+                    alert('Primero debes mostrar los datos antes de generar un gráfico.');
+                    return;
+                }
+                const rows = table.querySelectorAll('tr');
+                const labels = [];
+                const data = [];
+
+                rows.forEach((row, index) => {
+                    if (index !== 0) { // Ignorar la primera fila (encabezados)
+                        const cells = row.querySelectorAll('td');
+                        labels.push(cells[0].textContent); // El primer TD de cada fila se toma como etiqueta
+                        const value = parseFloat(cells[1].textContent); // El segundo TD de cada fila se toma como dato numérico
+                        if (!isNaN(value)) { // Solo agregar valores numéricos
+                            data.push(value);
+                        }
+                    }
+                });
+
+                if (labels.length > 0 && data.length > 0) {
+                    generateChart(labels, data);
+                } else {
+                    alert('No hay suficientes datos numéricos para generar el gráfico.');
+                }
+            });
+            
+            // Función para obtener las hojas de cálculo de una carpeta específica
+            function fetchFiles(folderId) {
+                fetch('/get-files-from-folder', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'folder_id': folderId,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Limpiar y actualizar el select de hojas de cálculo
+                        spreadsheetSelect.innerHTML = '';
+                        data.files.forEach(file => {
+                            const option = document.createElement('option');
+                            option.value = file.id;
+                            option.textContent = file.name;
+                            spreadsheetSelect.appendChild(option);
+                        });
+                    } else {
+                        alert('Error al obtener las hojas de cálculo.');
+                    }
+                })
+                .catch(error => console.error('Error fetching files:', error));
+            }
+
+            function fetchSpreadsheetData(spreadsheetId) {
+                fetch('/show-spreadsheet', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        'spreadsheet_id': spreadsheetId,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        generateDynamicTable(data.data, tableContainer);
+                        generateColumnOptions(data.data[0]); // Generar opciones de columna basadas en la primera fila de datos
+                        showControls(); // Mostrar los controles cuando se muestre la tabla
+                    } else {
+                        alert(data.message);
+                    }
+                })
+                .catch(error => console.error('Error fetching spreadsheet data:', error));
+            }
+
+            function generateDynamicTable(data, container) {
+                container.innerHTML = '';
+
+                const table = document.createElement('table');
+
+                data.forEach(rowData => {
+                    const row = document.createElement('tr');
+
+                    rowData.forEach(cellData => {
+                        const cell = document.createElement('td');
+                        cell.textContent = cellData;
+                        cell.setAttribute('contenteditable', 'true');
+                        row.appendChild(cell);
+                    });
+
+                    table.appendChild(row);
+                });
+
+                container.appendChild(table);
+            }
+
+            function saveChanges(spreadsheetId) {
+                const table = tableContainer.querySelector('table');
+                const rows = table.querySelectorAll('tr');
+                const values = [];
+
+                rows.forEach(row => {
+                    const rowData = [];
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(cell => {
+                        rowData.push(cell.textContent);
+                    });
+                    values.push(rowData);
+                });
+
+                fetch('/save-changes', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        'spreadsheet_id': spreadsheetId,
+                        'values': values,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Cambios guardados correctamente.');
+                        // Recargar los datos de la hoja de cálculo
+                        fetchSpreadsheetData(spreadsheetId);
+                    } else {
+                        alert('Error al guardar los cambios: ' + data.message);
+                    }
+                })
+                .catch(error => console.error('Error saving changes:', error));
+            }
+
+            function generateChart(labels, data) {
+                const ctx = document.createElement('canvas');
+                tableContainer.appendChild(ctx);
+
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Datos',
+                            data: data,
+                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            yAxes: [{
+                                ticks: {
+                                    beginAtZero: true
+                                }
+                            }]
+                        }
+                    }
+                });
+            }
+
+            function generateColumnOptions(columnHeaders) {
+                columnSelect.innerHTML = ''; // Limpiar opciones existentes
+                columnHeaders.forEach((header, index) => {
+                    const option = document.createElement('option');
+                    option.value = index; // El valor de la opción es el índice de la columna
+                    option.textContent = header; // El texto de la opción es el encabezado de la columna
+                    columnSelect.appendChild(option);
+                });
+            }
+
+            hideColumnBtn.addEventListener('click', function() {
+                const columnIndex = parseInt(columnSelect.value); // Obtener el índice de la columna seleccionada
+                const table = tableContainer.querySelector('table');
+                const rows = table.querySelectorAll('tr');
+
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    cells[columnIndex].classList.toggle('hidden'); // Alternar clase 'hidden' para ocultar/mostrar celda
+                });
+            });
+
+            showAllColumnsBtn.addEventListener('click', function() {
+                const table = tableContainer.querySelector('table');
+                const rows = table.querySelectorAll('tr');
+                
+                // Itera sobre todas las filas y muestra todas las celdas
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(cell => {
+                        cell.classList.remove('hidden'); // Elimina la clase 'hidden' para mostrar la celda
+                    });
+                });
+            });
+
+            // Función para mostrar los controles cuando se muestre la tabla
+            function showControls() {
+                controlsContainer.classList.remove('hidden');
+            }
+
+            // Función para ocultar los controles cuando se oculte la tabla
+            function hideControls() {
+                controlsContainer.classList.add('hidden');
+            }
+
+            // Agrega un observador de mutación para detectar cuando se añada o quite la tabla
+            const observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                        // Se añadió un nodo (la tabla)
+                        showControls();
+                    } else if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
+                        // Se quitó un nodo (la tabla)
+                        hideControls();
+                    }
+                });
+            });
+
+            // Configura y observa los cambios en el contenedor de la tabla
+            const config = { childList: true };
+            observer.observe(tableContainer, config);
+        });
+    </script>
 </body>
 </html>
