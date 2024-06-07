@@ -4,14 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tus Archivos de Google Drive</title>
+    <!-- Enlace a la hoja de estilos CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/files.css') }}">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Agregar Chart.js -->
+    <!-- Incluir la biblioteca Chart.js para la generación de gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
-
-        <h1>Escoja una carpeta y una hoja de cálculo</h1>
+        <h1>Escoja una carpeta</h1>
         <div class="select-container">
+            <!-- Selección de carpetas de Google Drive -->
             <select id="folder-select">
                 <option value="">Carpeta raíz</option>
                 {% for folder in folders %}
@@ -23,6 +25,7 @@
         
         <h1>Escoja una hoja de cálculo</h1>
         <div class="select-container">
+            <!-- Selección de hojas de cálculo dentro de la carpeta seleccionada -->
             <select id="spreadsheet-select">
                 <option value="">Seleccione una hoja de cálculo</option>
                 {% for file in files %}
@@ -35,19 +38,38 @@
             <button id="save-btn" class="btn">Guardar</button>
             <button id="generate-chart-btn" class="btn">Generar Gráfico</button>
         </div>
+        
+        <!-- Contenedor para la tabla generada dinámicamente -->
         <div id="table-container" class="table-container"></div>
+        
+        <!-- Controles para manipular la tabla -->
         <div id="controls-container" class="hidden">
             <label for="column-select">Ocultar Columna:</label>
-            <select id="column-select" class="select">
-                <!-- Opciones de columna generadas dinámicamente -->
-            </select>
+            <select id="column-select" class="select"></select>
             <button id="hide-column-btn" class="btn danger">Ocultar Columna Seleccionada</button>
             <button id="show-all-columns-btn" class="btn">Mostrar Todas las Columnas</button>
         </div>
+        
+        <!-- Controles para generar informes -->
+        <div id="report-container" class="hidden">
+            <h2>Generar Informe</h2>
+            <label for="filter-column-select">Seleccionar Columna de Filtro:</label>
+            <select id="filter-column-select" class="select"></select>
+            <label for="filter-value">Valor de Filtro:</label>
+            <input type="text" id="filter-value" class="input">
+            <label for="result-column-select">Seleccionar Columna de Resultado:</label>
+            <select id="result-column-select" class="select" multiple="3"></select>
+            <button id="generate-report-btn" class="btn">Generar Informe</button>
+            <div id="report-result"></div>
+        </div>
+        
+        <!-- Botón de cierre de sesión -->
         <div class="logout-btn">
             <a href="{{ url_for('logout') }}" class="btn logout">Cerrar sesión</a>
         </div>
     </div>
+
+    <!-- JavaScript para la interacción con la página -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const showBtn = document.getElementById('show-btn');
@@ -61,7 +83,14 @@
             const controlsContainer = document.getElementById('controls-container');
             const showFilesBtn = document.getElementById('show-files-btn');
             const folderSelect = document.getElementById('folder-select');
+            const reportContainer = document.getElementById('report-container');
+            const filterColumnSelect = document.getElementById('filter-column-select');
+            const resultColumnSelect = document.getElementById('result-column-select');
+            const generateReportBtn = document.getElementById('generate-report-btn');
+            const filterValueInput = document.getElementById('filter-value');
+            const reportResult = document.getElementById('report-result');
 
+            // Manejar el clic en el botón "Mostrar"
             showBtn.addEventListener('click', function() {
                 const spreadsheetId = spreadsheetSelect.value;
                 if (spreadsheetId) {
@@ -71,12 +100,13 @@
                 }
             });
 
-            // Evento al hacer clic en el botón para mostrar las hojas de cálculo
+            // Manejar el clic en el botón "Mostrar Hojas de Cálculo"
             showFilesBtn.addEventListener('click', function() {
                 const folderId = folderSelect.value;
                 fetchFiles(folderId);
             });
 
+            // Manejar el clic en el botón "Guardar"
             saveBtn.addEventListener('click', function() {
                 const spreadsheetId = spreadsheetSelect.value;
                 if (spreadsheetId) {
@@ -86,6 +116,7 @@
                 }
             });
 
+            // Manejar el clic en el botón "Generar Gráfico"
             generateChartBtn.addEventListener('click', function() {
                 const table = tableContainer.querySelector('table');
                 if (!table) {
@@ -97,11 +128,11 @@
                 const data = [];
 
                 rows.forEach((row, index) => {
-                    if (index !== 0) { // Ignorar la primera fila (encabezados)
+                    if (index !== 0) {
                         const cells = row.querySelectorAll('td');
-                        labels.push(cells[0].textContent); // El primer TD de cada fila se toma como etiqueta
-                        const value = parseFloat(cells[1].textContent); // El segundo TD de cada fila se toma como dato numérico
-                        if (!isNaN(value)) { // Solo agregar valores numéricos
+                        labels.push(cells[0].textContent);
+                        const value = parseFloat(cells[1].textContent);
+                        if (!isNaN(value)) {
                             data.push(value);
                         }
                     }
@@ -113,8 +144,8 @@
                     alert('No hay suficientes datos numéricos para generar el gráfico.');
                 }
             });
-            
-            // Función para obtener las hojas de cálculo de una carpeta específica
+
+            // Función para obtener los archivos de una carpeta específica
             function fetchFiles(folderId) {
                 fetch('/get-files-from-folder', {
                     method: 'POST',
@@ -128,7 +159,6 @@
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Limpiar y actualizar el select de hojas de cálculo
                         spreadsheetSelect.innerHTML = '';
                         data.files.forEach(file => {
                             const option = document.createElement('option');
@@ -143,6 +173,7 @@
                 .catch(error => console.error('Error fetching files:', error));
             }
 
+            // Función para obtener los datos de una hoja de cálculo
             function fetchSpreadsheetData(spreadsheetId) {
                 fetch('/show-spreadsheet', {
                     method: 'POST',
@@ -157,8 +188,9 @@
                 .then(data => {
                     if (data.success) {
                         generateDynamicTable(data.data, tableContainer);
-                        generateColumnOptions(data.data[0]); // Generar opciones de columna basadas en la primera fila de datos
-                        showControls(); // Mostrar los controles cuando se muestre la tabla
+                        generateColumnOptions(data.data[0]);
+                        showControls();
+                        showReportControls();
                     } else {
                         alert(data.message);
                     }
@@ -166,27 +198,198 @@
                 .catch(error => console.error('Error fetching spreadsheet data:', error));
             }
 
+            // Función para generar una tabla dinámica
             function generateDynamicTable(data, container) {
                 container.innerHTML = '';
-
                 const table = document.createElement('table');
-
-                data.forEach(rowData => {
-                    const row = document.createElement('tr');
-
-                    rowData.forEach(cellData => {
-                        const cell = document.createElement('td');
-                        cell.textContent = cellData;
-                        cell.setAttribute('contenteditable', 'true');
-                        row.appendChild(cell);
-                    });
-
-                    table.appendChild(row);
+                const headerRow = document.createElement('tr');
+                data[0].forEach(header => {
+                    const th = document.createElement('th');
+                    th.textContent = header;
+                    headerRow.appendChild(th);
                 });
-
+                table.appendChild(headerRow);
+                data.slice(1).forEach(row => {
+                    const tr = document.createElement('tr');
+                    row.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+                        td.setAttribute('contenteditable', 'true');
+                        tr.appendChild(td);
+                    });
+                    table.appendChild(tr);
+                });
                 container.appendChild(table);
             }
 
+            // Función para generar opciones de columnas
+            function generateColumnOptions(headers) {
+                columnSelect.innerHTML = '';
+                filterColumnSelect.innerHTML = '';
+                resultColumnSelect.innerHTML = '';
+
+                headers.forEach(header => {
+                    const option1 = document.createElement('option');
+                    const option2 = document.createElement('option');
+                    const option3 = document.createElement('option');
+                    option1.value = header;
+                    option1.textContent = header;
+                    option2.value = header;
+                    option2.textContent = header;
+                    option3.value = header;
+                    option3.textContent = header;
+                    columnSelect.appendChild(option1);
+                    filterColumnSelect.appendChild(option2);
+                    resultColumnSelect.appendChild(option3);
+                });
+            }
+
+            // Función para mostrar controles de la tabla
+            function showControls() {
+                controlsContainer.classList.remove('hidden');
+            }
+
+            // Función para mostrar controles del informe
+            function showReportControls() {
+                reportContainer.classList.remove('hidden');
+            }
+
+            // Manejar el clic en el botón "Ocultar Columna Seleccionada"
+            hideColumnBtn.addEventListener('click', function() {
+                const column = columnSelect.value;
+                if (column) {
+                    hideColumn(column);
+                }
+            });
+
+            // Manejar el clic en el botón "Mostrar Todas las Columnas"
+            showAllColumnsBtn.addEventListener('click', function() {
+                showAllColumns();
+            });
+
+            // Función para ocultar una columna específica
+            function hideColumn(columnName) {
+                const table = tableContainer.querySelector('table');
+                const headers = table.querySelectorAll('th');
+                let columnIndex = -1;
+                headers.forEach((header, index) => {
+                    if (header.textContent === columnName) {
+                        columnIndex = index;
+                        header.style.display = 'none';
+                    }
+                });
+                if (columnIndex > -1) {
+                    const rows = table.querySelectorAll('tr');
+                    rows.forEach(row => {
+                        const cells = row.querySelectorAll('td');
+                        if (cells[columnIndex]) {
+                            cells[columnIndex].style.display = 'none';
+                        }
+                    });
+                }
+            }
+
+            // Función para mostrar todas las columnas
+            function showAllColumns() {
+                const table = tableContainer.querySelector('table');
+                const headers = table.querySelectorAll('th');
+                headers.forEach(header => {
+                    header.style.display = '';
+                });
+                const rows = table.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const cells = row.querySelectorAll('td');
+                    cells.forEach(cell => {
+                        cell.style.display = '';
+                    });
+                });
+            }
+
+            // Manejar el clic en el botón "Generar Informe"
+            generateReportBtn.addEventListener('click', function() {
+                const filterColumn = filterColumnSelect.value;
+                const filterValue = filterValueInput.value;
+                const resultColumns = Array.from(resultColumnSelect.selectedOptions).map(option => option.value);
+
+                if (filterColumn && filterValue && resultColumns.length > 0) {
+                    generateReport(filterColumn, filterValue, resultColumns);
+                } else {
+                    alert('Por favor, complete todos los campos para generar el informe.');
+                }
+            });
+
+            // Función para generar un informe
+            function generateReport(filterColumn, filterValue, resultColumns) {
+                const table = tableContainer.querySelector('table');
+                const headers = Array.from(table.querySelectorAll('th')).map(header => header.textContent);
+                const filterIndex = headers.indexOf(filterColumn);
+                const resultIndices = resultColumns.map(col => headers.indexOf(col));
+                const rows = Array.from(table.querySelectorAll('tr')).slice(1);
+                const filteredRows = rows.filter(row => {
+                    const cells = row.querySelectorAll('td');
+                    return cells[filterIndex].textContent === filterValue;
+                });
+
+                const results = filteredRows.map(row => {
+                    const cells = row.querySelectorAll('td');
+                    return resultIndices.map(index => cells[index].textContent);
+                });
+
+                displayReportResults(results, resultColumns);
+                saveReportResults(results, resultColumns, filterColumn, filterValue);
+            }
+
+            // Función para mostrar resultados del informe
+            function displayReportResults(results, columns) {
+                reportResult.innerHTML = '';
+                const table = document.createElement('table');
+                const headerRow = document.createElement('tr');
+                columns.forEach(column => {
+                    const th = document.createElement('th');
+                    th.textContent = column;
+                    headerRow.appendChild(th);
+                });
+                table.appendChild(headerRow);
+
+                results.forEach(result => {
+                    const row = document.createElement('tr');
+                    result.forEach(cell => {
+                        const td = document.createElement('td');
+                        td.textContent = cell;
+                        row.appendChild(td);
+                    });
+                    table.appendChild(row);
+                });
+
+                reportResult.appendChild(table);
+            }
+
+            // Función para guardar los resultados del informe
+            function saveReportResults(results, columns, filterColumn, filterValue) {
+                fetch('/save-report', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        'results': results,
+                        'columns': columns,
+                        'filter_column': filterColumn,
+                        'filter_value': filterValue,
+                    }),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Informe guardado correctamente.');
+                    } else {
+                        alert('Error al guardar el informe: ' + data.message);
+                    }
+                })
+                .catch(error => console.error('Error saving report:', error));
+            }
+
+            // Función para guardar cambios en la hoja de cálculo
             function saveChanges(spreadsheetId) {
                 const table = tableContainer.querySelector('table');
                 const rows = table.querySelectorAll('tr');
@@ -224,94 +427,41 @@
                 .catch(error => console.error('Error saving changes:', error));
             }
 
+            // Función para generar un gráfico
             function generateChart(labels, data) {
-                const ctx = document.createElement('canvas');
-                tableContainer.appendChild(ctx);
+                const chartContainer = document.getElementById('chart-container');
+                if (chartContainer) {
+                    chartContainer.remove();
+                }
 
+                const newChartContainer = document.createElement('div');
+                newChartContainer.id = 'chart-container';
+                const canvas = document.createElement('canvas');
+                newChartContainer.appendChild(canvas);
+                document.body.appendChild(newChartContainer);
+
+                const ctx = canvas.getContext('2d');
                 new Chart(ctx, {
                     type: 'bar',
                     data: {
                         labels: labels,
                         datasets: [{
-                            label: 'Datos',
+                            label: 'Datos de la tabla',
                             data: data,
-                            backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                            borderColor: 'rgba(54, 162, 235, 1)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
                             borderWidth: 1
                         }]
                     },
                     options: {
                         scales: {
-                            yAxes: [{
-                                ticks: {
-                                    beginAtZero: true
-                                }
-                            }]
+                            y: {
+                                beginAtZero: true
+                            }
                         }
                     }
                 });
             }
-
-            function generateColumnOptions(columnHeaders) {
-                columnSelect.innerHTML = ''; // Limpiar opciones existentes
-                columnHeaders.forEach((header, index) => {
-                    const option = document.createElement('option');
-                    option.value = index; // El valor de la opción es el índice de la columna
-                    option.textContent = header; // El texto de la opción es el encabezado de la columna
-                    columnSelect.appendChild(option);
-                });
-            }
-
-            hideColumnBtn.addEventListener('click', function() {
-                const columnIndex = parseInt(columnSelect.value); // Obtener el índice de la columna seleccionada
-                const table = tableContainer.querySelector('table');
-                const rows = table.querySelectorAll('tr');
-
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    cells[columnIndex].classList.toggle('hidden'); // Alternar clase 'hidden' para ocultar/mostrar celda
-                });
-            });
-
-            showAllColumnsBtn.addEventListener('click', function() {
-                const table = tableContainer.querySelector('table');
-                const rows = table.querySelectorAll('tr');
-                
-                // Itera sobre todas las filas y muestra todas las celdas
-                rows.forEach(row => {
-                    const cells = row.querySelectorAll('td');
-                    cells.forEach(cell => {
-                        cell.classList.remove('hidden'); // Elimina la clase 'hidden' para mostrar la celda
-                    });
-                });
-            });
-
-            // Función para mostrar los controles cuando se muestre la tabla
-            function showControls() {
-                controlsContainer.classList.remove('hidden');
-            }
-
-            // Función para ocultar los controles cuando se oculte la tabla
-            function hideControls() {
-                controlsContainer.classList.add('hidden');
-            }
-
-            // Agrega un observador de mutación para detectar cuando se añada o quite la tabla
-            const observer = new MutationObserver(function(mutations) {
-                mutations.forEach(function(mutation) {
-                    if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                        // Se añadió un nodo (la tabla)
-                        showControls();
-                    } else if (mutation.type === 'childList' && mutation.removedNodes.length > 0) {
-                        // Se quitó un nodo (la tabla)
-                        hideControls();
-                    }
-                });
-            });
-
-            // Configura y observa los cambios en el contenedor de la tabla
-            const config = { childList: true };
-            observer.observe(tableContainer, config);
         });
     </script>
 </body>
